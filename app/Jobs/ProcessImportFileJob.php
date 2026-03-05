@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\ImportFile;
+use App\Models\ImportUser;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,7 @@ class ProcessImportFileJob implements ShouldQueue
 
     public function handle()
     {
+
         $path = storage_path('app/public/'.$this->import->file_path);
 
         if (!file_exists($path)) {
@@ -31,13 +33,15 @@ class ProcessImportFileJob implements ShouldQueue
 
         while (($row = fgetcsv($file)) !== false) {
 
-            // Example process
-            Log::info("Processing: ".$row[0]);
+            ImportUser::create([
+                'name'  => $row[0],
+                'email' => $row[1]
+            ]);
+
         }
 
         fclose($file);
 
-        // mark completed
         $this->import->update([
             'status' => 1
         ]);
