@@ -1,5 +1,98 @@
 <?php
 
+// namespace App\Jobs;
+
+// use App\Models\ImportUser;
+// use App\Models\ImportSummary;
+// use App\Models\FailedImport;
+// use Illuminate\Contracts\Queue\ShouldQueue;
+// use Illuminate\Foundation\Queue\Queueable;
+
+// class ImportChunkJob implements ShouldQueue
+// {
+//     use Queueable;
+
+//     public $chunk;
+//     public $uploadId;
+
+//     public function __construct($chunk, $uploadId)
+//     {
+//         $this->chunk = $chunk;
+//         $this->uploadId = $uploadId;
+//     }
+
+//     public function handle()
+//     {
+//         $success = 0;
+//         $duplicate = 0;
+//         $failed = 0;
+
+//         $failedRows = [];
+
+//         foreach ($this->chunk as $row) {
+
+//             try {
+
+//                 // if (empty($row['email'])) {
+//                 //     throw new \Exception('Email Empty');
+//                 // }
+
+//                 // if (
+//                 //     ImportUser::where(
+//                 //         'email',
+//                 //         $row['email']
+//                 //     )->exists()
+//                 // ) {
+//                 //     $duplicate++;
+//                 //     continue;
+//                 // }
+
+//                 ImportUser::create($row);
+
+//                 $success++;
+
+//             } catch (\Exception $e) {
+
+//                 $failed++;
+
+//                 $failedRows[] = [
+//                     'upload_history_id'=>$this->uploadId,
+//                     'name'=>$row['name'],
+//                     'email'=>$row['email'],
+//                     'reason'=>$e->getMessage(),
+//                     'created_at'=>now(),
+//                     'updated_at'=>now()
+//                 ];
+//             }
+//         }
+
+//         if ($failedRows) {
+//             FailedImport::insert($failedRows);
+//         }
+
+//         ImportSummary::where(
+//             'upload_history_id',
+//             $this->uploadId
+//         )->increment('total_success', $success);
+
+//         // ImportSummary::where(
+//         //     'upload_history_id',
+//         //     $this->uploadId
+//         // )->increment('total_duplicate', $duplicate);
+
+//         ImportSummary::where(
+//             'upload_history_id',
+//             $this->uploadId
+//         )->increment('total_failed', $failed);
+//     }
+// }
+
+
+
+
+//excell for chunk job
+
+
 namespace App\Jobs;
 
 use App\Models\ImportUser;
@@ -15,47 +108,56 @@ class ImportChunkJob implements ShouldQueue
     public $chunk;
     public $uploadId;
 
-    public function __construct($chunk, $uploadId)
+    public function __construct($chunk,$uploadId)
     {
-        $this->chunk = $chunk;
-        $this->uploadId = $uploadId;
+        $this->chunk=$chunk;
+        $this->uploadId=$uploadId;
     }
 
     public function handle()
     {
-        $success = 0;
-        $duplicate = 0;
-        $failed = 0;
 
-        $failedRows = [];
+        $success=0;
+        $duplicate=0;
+        $failed=0;
 
-        foreach ($this->chunk as $row) {
+        $insertData=[];
+        $failedRows=[];
 
-            try {
+        foreach($this->chunk as $row){
 
-                if (empty($row['email'])) {
+            try{
+
+                if(empty($row['email'])){
                     throw new \Exception('Email Empty');
                 }
 
-                if (
+                if(
                     ImportUser::where(
                         'email',
                         $row['email']
                     )->exists()
-                ) {
+                ){
+
                     $duplicate++;
                     continue;
+
                 }
 
-                ImportUser::create($row);
+                $insertData[]=[
+                    'name'=>$row['name'],
+                    'email'=>$row['email'],
+                    'created_at'=>now(),
+                    'updated_at'=>now()
+                ];
 
                 $success++;
 
-            } catch (\Exception $e) {
+            }catch(\Exception $e){
 
                 $failed++;
 
-                $failedRows[] = [
+                $failedRows[]=[
                     'upload_history_id'=>$this->uploadId,
                     'name'=>$row['name'],
                     'email'=>$row['email'],
@@ -63,26 +165,33 @@ class ImportChunkJob implements ShouldQueue
                     'created_at'=>now(),
                     'updated_at'=>now()
                 ];
+
             }
+
         }
 
-        if ($failedRows) {
+        if($insertData){
+            ImportUser::insert($insertData);
+        }
+
+        if($failedRows){
             FailedImport::insert($failedRows);
         }
 
         ImportSummary::where(
             'upload_history_id',
             $this->uploadId
-        )->increment('total_success', $success);
+        )->increment('total_success',$success);
 
         ImportSummary::where(
             'upload_history_id',
             $this->uploadId
-        )->increment('total_duplicate', $duplicate);
+        )->increment('total_duplicate',$duplicate);
 
         ImportSummary::where(
             'upload_history_id',
             $this->uploadId
-        )->increment('total_failed', $failed);
+        )->increment('total_failed',$failed);
+
     }
 }

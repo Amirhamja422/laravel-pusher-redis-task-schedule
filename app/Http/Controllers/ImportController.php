@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 class ImportController extends Controller
 {
     //
-        public function uploadImport(Request $request)
+    public function uploadImport(Request $request)
     {
         $request->validate([
             'file' => 'required|file|mimes:csv,txt',
@@ -16,7 +16,7 @@ class ImportController extends Controller
         ]);
 
         $path = $request->file('file')
-            ->store('imports','public');
+            ->store('imports', 'public');
 
         ImportFile::create([
             'file_path' => $path,

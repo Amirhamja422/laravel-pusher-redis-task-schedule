@@ -1,12 +1,105 @@
 <?php
+// namespace App\Jobs;
 
-namespace App\Jobs;
+// use App\Models\File;
+// use App\Models\ImportSummary;
+// use Illuminate\Contracts\Queue\ShouldQueue;
+// use Illuminate\Foundation\Queue\Queueable;
 
+// class ProcessFileUpload implements ShouldQueue
+// {
+//     use Queueable;
+
+//     public $file;
+
+//     public function __construct(File $file)
+//     {
+//         $this->file = $file;
+//     }
+
+//     public function handle()
+//     {
+
+//         $this->file->update([
+//             'status'=>'processing'
+//         ]);
+
+//         $filePath = storage_path('app/public/'.$this->file->file_path);
+
+//         if(!file_exists($filePath)){
+
+//             $this->file->update([
+//                 'status'=>'failed'
+//             ]);
+
+//             return;
+//         }
+
+//         $summary = ImportSummary::create([
+//             'upload_history_id'=>$this->file->id
+//         ]);
+
+//         $handle = fopen($filePath,'r');
+
+//         $header = fgetcsv($handle);
+
+//         $chunkSize = 500;
+//         $chunk = [];
+//         $totalRows = 0;
+
+//         while(($row = fgetcsv($handle)) !== false){
+
+//             $totalRows++;
+
+//             $chunk[] = array_combine($header,$row);
+
+//             if(count($chunk) == $chunkSize){
+
+//                 ImportChunkJob::dispatch(
+//                     $chunk,
+//                     $this->file->id
+//                 );
+
+//                 $chunk = [];
+//             }
+//         }
+
+//         if(!empty($chunk)){
+
+//             ImportChunkJob::dispatch(
+//                 $chunk,
+//                 $this->file->id
+//             );
+//         }
+
+//         fclose($handle);
+
+//         ImportSummary::where(
+//             'upload_history_id',
+//             $this->file->id
+//         )->update([
+//             'total_rows'=>$totalRows
+//         ]);
+
+//         $this->file->update([
+//             'status'=>'completed'
+//         ]);
+//     }
+// }
+
+
+
+// for excell job
+
+
+// namespace App\Jobs;
+
+use App\Jobs\ImportChunkJob;
 use App\Models\File;
 use App\Models\ImportSummary;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProcessFileUpload implements ShouldQueue
 {
@@ -21,59 +114,51 @@ class ProcessFileUpload implements ShouldQueue
 
     public function handle()
     {
-        // Update status
+
         $this->file->update([
-            'status' => 'processing'
+            'status'=>'processing'
+        ]);
+
+        ImportSummary::create([
+            'upload_history_id'=>$this->file->id
         ]);
 
         $filePath = storage_path(
-            'app/public/' . $this->file->file_path
+            'app/public/'.$this->file->file_path
         );
 
-        if (!file_exists($filePath)) {
-            $this->file->update(['status' => 'failed']);
-            return;
-        }
+        $data = Excel::toArray([], $filePath);
 
-        // Create summary row
-        $summary = ImportSummary::create([
-            'upload_history_id' => $this->file->id
-        ]);
+        $rows = $data[0];
 
-        $handle = fopen($filePath, 'r');
-
-        $header = fgetcsv($handle);
+        $header = array_shift($rows);
 
         $chunkSize = 1000;
-        $chunk = [];
 
-        while (($row = fgetcsv($handle)) !== false) {
+        foreach(array_chunk($rows,$chunkSize) as $chunk){
 
-            $chunk[] = array_combine($header, $row);
+            $formatted=[];
 
-            if (count($chunk) == $chunkSize) {
+            foreach($chunk as $row){
 
-                ImportChunkJob::dispatch(
-                    $chunk,
-                    $this->file->id
-                );
+                $formatted[]=[
+                    'name'=>$row[0] ?? null,
+                    'email'=>$row[1] ?? null
+                ];
 
-                $chunk = [];
             }
-        }
 
-        // Remaining rows
-        if (!empty($chunk)) {
             ImportChunkJob::dispatch(
-                $chunk,
+                $formatted,
                 $this->file->id
             );
+
         }
 
-        fclose($handle);
-
         $this->file->update([
-            'status' => 'completed'
+            'status'=>'completed'
         ]);
+
     }
 }
+
