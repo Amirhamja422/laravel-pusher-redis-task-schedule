@@ -1,105 +1,11 @@
 <?php
-// namespace App\Jobs;
 
-// use App\Models\File;
-// use App\Models\ImportSummary;
-// use Illuminate\Contracts\Queue\ShouldQueue;
-// use Illuminate\Foundation\Queue\Queueable;
+namespace App\Jobs;
 
-// class ProcessFileUpload implements ShouldQueue
-// {
-//     use Queueable;
-
-//     public $file;
-
-//     public function __construct(File $file)
-//     {
-//         $this->file = $file;
-//     }
-
-//     public function handle()
-//     {
-
-//         $this->file->update([
-//             'status'=>'processing'
-//         ]);
-
-//         $filePath = storage_path('app/public/'.$this->file->file_path);
-
-//         if(!file_exists($filePath)){
-
-//             $this->file->update([
-//                 'status'=>'failed'
-//             ]);
-
-//             return;
-//         }
-
-//         $summary = ImportSummary::create([
-//             'upload_history_id'=>$this->file->id
-//         ]);
-
-//         $handle = fopen($filePath,'r');
-
-//         $header = fgetcsv($handle);
-
-//         $chunkSize = 500;
-//         $chunk = [];
-//         $totalRows = 0;
-
-//         while(($row = fgetcsv($handle)) !== false){
-
-//             $totalRows++;
-
-//             $chunk[] = array_combine($header,$row);
-
-//             if(count($chunk) == $chunkSize){
-
-//                 ImportChunkJob::dispatch(
-//                     $chunk,
-//                     $this->file->id
-//                 );
-
-//                 $chunk = [];
-//             }
-//         }
-
-//         if(!empty($chunk)){
-
-//             ImportChunkJob::dispatch(
-//                 $chunk,
-//                 $this->file->id
-//             );
-//         }
-
-//         fclose($handle);
-
-//         ImportSummary::where(
-//             'upload_history_id',
-//             $this->file->id
-//         )->update([
-//             'total_rows'=>$totalRows
-//         ]);
-
-//         $this->file->update([
-//             'status'=>'completed'
-//         ]);
-//     }
-// }
-
-
-
-// for excell job
-
-
-// namespace App\Jobs;
-
-use App\Jobs\ImportChunkJob;
 use App\Models\File;
 use App\Models\ImportSummary;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Maatwebsite\Excel\Facades\Excel;
 
 class ProcessFileUpload implements ShouldQueue
 {
@@ -119,46 +25,66 @@ class ProcessFileUpload implements ShouldQueue
             'status'=>'processing'
         ]);
 
-        ImportSummary::create([
+        $filePath = storage_path('app/public/'.$this->file->file_path);
+
+        if(!file_exists($filePath)){
+
+            $this->file->update([
+                'status'=>'failed'
+            ]);
+
+            return;
+        }
+
+        $summary = ImportSummary::create([
             'upload_history_id'=>$this->file->id
         ]);
 
-        $filePath = storage_path(
-            'app/public/'.$this->file->file_path
-        );
+        $handle = fopen($filePath,'r');
 
-        $data = Excel::toArray([], $filePath);
+        $header = fgetcsv($handle);
 
-        $rows = $data[0];
+        $chunkSize = 500;
+        $chunk = [];
+        $totalRows = 0;
 
-        $header = array_shift($rows);
+        while(($row = fgetcsv($handle)) !== false){
 
-        $chunkSize = 1000;
+            $totalRows++;
 
-        foreach(array_chunk($rows,$chunkSize) as $chunk){
+            $chunk[] = array_combine($header,$row);
 
-            $formatted=[];
+            if(count($chunk) == $chunkSize){
 
-            foreach($chunk as $row){
+                ImportChunkJob::dispatch(
+                    $chunk,
+                    $this->file->id
+                );
 
-                $formatted[]=[
-                    'name'=>$row[0] ?? null,
-                    'email'=>$row[1] ?? null
-                ];
-
+                $chunk = [];
             }
+        }
+
+        if(!empty($chunk)){
 
             ImportChunkJob::dispatch(
-                $formatted,
+                $chunk,
                 $this->file->id
             );
-
         }
+
+        fclose($handle);
+
+        ImportSummary::where(
+            'upload_history_id',
+            $this->file->id
+        )->update([
+            'total_rows'=>$totalRows
+        ]);
 
         $this->file->update([
             'status'=>'completed'
         ]);
-
     }
 }
 
