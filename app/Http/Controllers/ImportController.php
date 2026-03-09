@@ -11,7 +11,7 @@ class ImportController extends Controller
     public function uploadImport(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls',
             'run_at' => 'required|date'
         ]);
 

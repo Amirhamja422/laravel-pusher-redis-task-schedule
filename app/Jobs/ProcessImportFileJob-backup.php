@@ -20,7 +20,6 @@ class ProcessImportFileJob implements ShouldQueue
     }
 
     public function handle()
-    {
 
         $path = storage_path('app/public/'.$this->import->file_path);
 
