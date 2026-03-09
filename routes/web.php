@@ -33,3 +33,11 @@ Route::get('/import-file', function() {
 
 
 Route::post('/upload-import',[ImportController::class,'uploadImport']);
+
+
+## for pusher
+
+Route::get('/pusher-test', function() {
+    return view('pusher-event');
+});
+
